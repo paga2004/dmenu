@@ -141,7 +141,8 @@ recalculatenumbers()
 	}
 	for (item = items; item && item->text; item++)
 		denom++;
-	snprintf(numbers, NUMBERSBUFSIZE, "%d/%d", numer, denom);
+    if(denom)
+	    snprintf(numbers, NUMBERSBUFSIZE, "%d/%d", numer, denom);
 }
 
 static void
