@@ -1,4 +1,4 @@
-dmenu - dynamic menu
+Custom build of dmenu
 ====================
 dmenu is an efficient dynamic menu for X.
 
