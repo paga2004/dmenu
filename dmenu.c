@@ -86,10 +86,10 @@ calcoffsets(void)
 		n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
 	/* calculate which items will begin the next page and previous page */
 	for (i = 0, next = curr; next; next = next->right)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(next->text), n)) > n)
+		if ((i += (lines > 0) ? bh : MIN(TEXTW(next->stext), n)) > n)
 			break;
 	for (i = 0, prev = curr; prev && prev->left; prev = prev->left)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(prev->left->text), n)) > n)
+		if ((i += (lines > 0) ? bh : MIN(TEXTW(prev->left->stext), n)) > n)
 			break;
 }
 
@@ -140,7 +140,7 @@ recalculatenumbers()
 		for (item = matchend; item && item->left; item = item->left)
 			numer++;
 	}
-	for (item = items; item && item->text; item++)
+	for (item = items; item && item->stext; item++)
 		denom++;
     if(denom)
 	    snprintf(numbers, NUMBERSBUFSIZE, "%d/%d", numer, denom);
@@ -259,16 +259,16 @@ match(void)
 
 	matches = lprefix = lsubstr = matchend = prefixend = substrend = NULL;
 	textsize = strlen(text) + 1;
-	for (item = items; item && item->text; item++) {
+	for (item = items; item && item->stext; item++) {
 		for (i = 0; i < tokc; i++)
-			if (!fstrstr(item->text, tokv[i]))
+			if (!fstrstr(item->stext, tokv[i]))
 				break;
 		if (i != tokc) /* not all tokens match */
 			continue;
 		/* exact matches go first, then prefixes, then substrings */
-		if (!tokc || !fstrncmp(text, item->text, textsize))
+		if (!tokc || !fstrncmp(text, item->stext, textsize))
 			appenditem(item, &matches, &matchend);
-		else if (!fstrncmp(tokv[0], item->text, len))
+		else if (!fstrncmp(tokv[0], item->stext, len))
 			appenditem(item, &lprefix, &prefixend);
 		else
 			appenditem(item, &lsubstr, &substrend);
@@ -518,7 +518,7 @@ insert:
 	case XK_Tab:
 		if (!sel)
 			return;
-		strncpy(text, sel->text, sizeof text - 1);
+		strncpy(text, sel->stext, sizeof text - 1);
 		text[sizeof text - 1] = '\0';
 		cursor = strlen(text);
 		match();
@@ -583,8 +583,11 @@ buttonpress(XEvent *e)
 	}
 	if (ev->button != Button1)
 		return;
+	/* disabled below, needs to be fixed */
+	/*
 	if (ev->state & ~ControlMask)
 		return;
+	*/
 	if (lines > 0) {
 		/* vertical list: (ctrl)left-click on item */
 		w = mw - x;
@@ -617,7 +620,7 @@ buttonpress(XEvent *e)
 		/* horizontal list: (ctrl)left-click on item */
 		for (item = curr; item != next; item = item->right) {
 			x += w;
-			w = MIN(TEXTW(item->text), mw - x - TEXTW(">"));
+			w = MIN(TEXTW(item->stext), mw - x - TEXTW(">"));
 			if (ev->x >= x && ev->x <= x + w) {
 				puts(item->text);
 				if (!(ev->state & ControlMask))
@@ -638,6 +641,40 @@ buttonpress(XEvent *e)
 			calcoffsets();
 			drawmenu();
 			return;
+		}
+	}
+}
+
+static void
+mousemove(XEvent *e)
+{
+	struct item *item;
+	XPointerMovedEvent *ev = &e->xmotion;
+	int x = 0, y = 0, h = bh, w;
+
+	if (lines > 0) {
+		w = mw - x;
+		for (item = curr; item != next; item = item->right) {
+			y += h;
+			if (ev->y >= y && ev->y <= (y + h)) {
+				sel = item;
+				calcoffsets();
+				drawmenu();
+				return;
+			}
+		}
+	} else if (matches) {
+		x += inputw;
+		w = TEXTW("<");
+		for (item = curr; item != next; item = item->right) {
+			x += w;
+			w = MIN(TEXTW(item->stext), mw - x - TEXTW(">"));
+			if (ev->x >= x && ev->x <= x + w) {
+				sel = item;
+				calcoffsets();
+				drawmenu();
+				return;
+			}
 		}
 	}
 }
@@ -714,6 +751,9 @@ run(void)
 			exit(1);
 		case ButtonPress:
 			buttonpress(&ev);
+			break;
+		case MotionNotify:
+			mousemove(&ev);
 			break;
 		case Expose:
 			if (ev.xexpose.count == 0)
@@ -813,7 +853,7 @@ setup(void)
 	swa.override_redirect = True;
 	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask |
-	                 ButtonPressMask;
+	                 ButtonPressMask | PointerMotionMask;
 	win = XCreateWindow(dpy, parentwin, x, y, mw, mh, 0,
 	                    CopyFromParent, CopyFromParent, CopyFromParent,
 	                    CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
