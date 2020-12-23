@@ -166,21 +166,22 @@ drawmenu(void)
 	if (passwd) {
 	        censort = ecalloc(1, sizeof(text));
 		memset(censort, '.', strlen(text));
-		drw_text(drw, x, 0, w, bh, lrpad / 2, censort, 0);
+		drw_text(drw, x, bh*lines, w, bh, lrpad / 2, censort, 0);
 		free(censort);
-	} else drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
+	} else drw_text(drw, x, bh*lines, w, bh, lrpad / 2, text, 0);
 
 	curpos = TEXTW(text) - TEXTW(&text[cursor]);
 	if ((curpos += lrpad / 2 - 1) < w) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
+		drw_rect(drw, x + curpos, bh*lines + 2, 2, bh - 4, 1, 0);
 	}
 
 	recalculatenumbers();
 	if (lines > 0) {
 		/* draw vertical list */
+        y = bh * lines;
 		for (item = curr; item != next; item = item->right)
-			drawitem(item, x, y += bh, mw - x);
+			drawitem(item, x, y -= bh, mw - x);
 	} else if (matches) {
 		/* draw horizontal list */
 		x += inputw;
@@ -199,7 +200,7 @@ drawmenu(void)
 		}
 	}
 	drw_setscheme(drw, scheme[SchemeNorm]);
-	drw_text(drw, mw - TEXTW(numbers), 0, TEXTW(numbers), bh, lrpad / 2, numbers, 0);
+	drw_text(drw, mw - TEXTW(numbers), bh*lines, TEXTW(numbers), bh, lrpad / 2, numbers, 0);
 	drw_map(drw, win, 0, 0, mw, mh);
 }
 
@@ -473,7 +474,9 @@ insert:
 			return;
 		/* fallthrough */
 	case XK_Up:
-		if (sel && sel->left && (sel = sel->left)->right == curr) {
+        if(lines > 0) goto down;
+up:
+        if (sel && sel->left && (sel = sel->left)->right == curr) {
 			curr = prev;
 			calcoffsets();
 		}
@@ -509,6 +512,8 @@ insert:
 			return;
 		/* fallthrough */
 	case XK_Down:
+        if(lines > 0) goto up;
+down:
 		if (sel && sel->right && (sel = sel->right) == next) {
 			curr = next;
 			calcoffsets();
@@ -568,6 +573,8 @@ buttonpress(XEvent *e)
 	}
 	/* scroll up */
 	if (ev->button == Button4 && prev) {
+        if(lines > 0) goto scrolldown;
+scrollup:
 		sel = curr = prev;
 		calcoffsets();
 		drawmenu();
@@ -575,6 +582,8 @@ buttonpress(XEvent *e)
 	}
 	/* scroll down */
 	if (ev->button == Button5 && next) {
+        if(lines > 0) goto scrollup;
+scrolldown:
 		sel = curr = next;
 		calcoffsets();
 		drawmenu();
@@ -637,6 +646,40 @@ buttonpress(XEvent *e)
 			calcoffsets();
 			drawmenu();
 			return;
+		}
+	}
+}
+
+static void
+mousemove(XEvent *e)
+{
+	struct item *item;
+	XPointerMovedEvent *ev = &e->xmotion;
+	int x = 0, y = bh*lines, h = bh, w;
+
+	if (lines > 0) {
+		w = mw - x;
+		for (item = curr; item != next; item = item->right) {
+			y -= h;
+			if (ev->y >= y && ev->y <= (y + h)) {
+				sel = item;
+				calcoffsets();
+				drawmenu();
+				return;
+			}
+		}
+	} else if (matches) {
+		x += inputw;
+		w = TEXTW("<");
+		for (item = curr; item != next; item = item->right) {
+			x += w;
+			w = MIN(TEXTW(item->text), mw - x - TEXTW(">"));
+			if (ev->x >= x && ev->x <= x + w) {
+				sel = item;
+				calcoffsets();
+				drawmenu();
+				return;
+			}
 		}
 	}
 }
