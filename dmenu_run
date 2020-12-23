@@ -1,2 +1,10 @@
 #!/bin/sh
-dmenu_path | dmenu "$@" | ${SHELL:-"/bin/sh"} &
+cmd="$(dmenu_path | dmenu "$@")"
+
+case $cmd in 
+	*\!) setsid ${TERMINAL} -e "$(printf "%s" "${cmd}" | cut -d'!' -f1)";; 
+	*) setsid ${SHELL:-"/bin/sh"} -c ${cmd} &;; 
+esac 
+
+
+
