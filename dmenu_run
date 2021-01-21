@@ -1,6 +1,8 @@
 #!/bin/sh
 cmd="$(dmenu_path | dmenu "$@")"
 
+[ -z $cmd ] && exit 1
+
 case $cmd in 
 	*\!) setsid ${TERMINAL} -e "$(printf "%s" "${cmd}" | cut -d'!' -f1)";; 
 	*) setsid ${SHELL:-"/bin/sh"} -c ${cmd} &;; 
