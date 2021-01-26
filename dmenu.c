@@ -979,13 +979,18 @@ setup(void)
 	match();
 
 	/* create menu window */
+    if(lines) {
+        y -= (!topbar ? 2*border_width : 0);
+    }
 	swa.override_redirect = True;
 	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask |
 	                 ButtonPressMask;
-	win = XCreateWindow(dpy, parentwin, x, y, mw, mh, 0,
+	win = XCreateWindow(dpy, parentwin, x, y, mw - (lines ? 2*border_width : 0), mh, lines ? border_width : 0,
 	                    CopyFromParent, CopyFromParent, CopyFromParent,
 	                    CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
+    if(lines)
+	    XSetWindowBorder(dpy, win, scheme[SchemeNorm][ColFg].pixel);
 	XSetClassHint(dpy, win, &ch);
 
 
@@ -1034,7 +1039,7 @@ main(int argc, char *argv[])
 			topbar = 0;
 		else if (!strcmp(argv[i], "-f"))   /* grabs keyboard before reading stdin */
 			fast = 1;
-		else if (!strcmp(argv[i], "-F"))   /* grabs keyboard before reading stdin */
+		else if (!strcmp(argv[i], "-F"))   /*  fuzzy matching */
 			fuzzy = 0;
 		else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
 			fstrncmp = strncasecmp;
